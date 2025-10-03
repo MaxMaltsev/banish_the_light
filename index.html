@@ -62,19 +62,19 @@
                 var combo = 1;
                 var mouseDown = false;
                 var attackCharge = 0;
-                var heavyTime = 0;
+                var weaponBaseSize = 1;
                 document.addEventListener('keydown', (event) => {
-  				if (event.key === 'w') {
+  				if (event.key === 'w' || event.key === 'W') {
      				   upPressed = true;
-   				 } else if (event.key === 's') {
+   				 } else if (event.key === 's' || event.key === 'S') {
      				   downPressed = true;
-   				 } else if (event.key === 'a') {
+   				 } else if (event.key === 'a' || event.key === 'A') {
      				   leftPressed = true;
-  				 } else if (event.key === 'd') {
+  				 } else if (event.key === 'd' || event.key === 'D') {
    				     rightPressed = true;
    				 } else if (event.key === ' ') {
    				     spacePressed = true;
-   				 } else if (event.key === 'e') {
+   				 } else if (event.key === 'e' || event.key === 'E') {
    				     ePressed = true;
    				 }
                 if (event.shiftKey) {
@@ -82,17 +82,17 @@
                 }
 				});
 				document.addEventListener('keyup', (event) => {
-  				if (event.key === 'w') {
+  				if (event.key === 'w' || event.key === 'W') {
      				   upPressed = false;
-   				 } else if (event.key === 's') {
+   				 } else if (event.key === 's' || event.key === 'S') {
      				   downPressed = false;
-   				 } else if (event.key === 'a') {
+   				 } else if (event.key === 'a' || event.key === 'A') {
      				   leftPressed = false;
-  				 } else if (event.key === 'd') {
+  				 } else if (event.key === 'd' || event.key === 'D') {
    				     rightPressed = false;
    				 } else if (event.key === ' ') {
    				     spacePressed = false;
-   				 } else if (event.key === 'e') {
+   				 } else if (event.key === 'e' || event.key === 'E') {
    				     ePressed = false;
    				 }
                 if (event.shiftKey) {
@@ -111,15 +111,14 @@
                     } 
                 });
                 addEventListener('mouseup', function(event) {
-                    if (event.button === 0 && swingTime <= 0 && heavyTime <= 0) {
+                    if (event.button === 0 && swingTime <= 0) {
                         mouseDown = false;
-                        if (shiftPressed = true && attackCharge >= 300) {
-                            if (attackCharge >= 900) {
-                                heavyTime = 360;
-                            }
-                        } else {
-                            swingTime = 150;
-                        }
+                        swingTime = 150;
+                        wElement.style.transform = "translate(-50%, -50%) rotate(" + (degrees - combo*60 + 90*(combo - 1)) + "deg)" + "scaleX(" + (1 + (attackCharge/400)) + ") scaleY(" + (1 + (attackCharge/400)) + ")";
+                        wElement.style.left = ((window.screen.width*0.5 - (attackCharge/700 + 1)*(70*Math.cos(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
+                        wElement.style.top = ((window.screen.height*0.5 - (attackCharge/700 + 1)*(70*Math.sin(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
+                        swingCurrentAngle = angle;
+                        swingVel = 0;
                     }
                 });
                 function spawnClouds() {
@@ -173,7 +172,7 @@
                 const wElement = document.getElementById('weapon');
                 wElement.innerHTML = "<img src=\'black-splinter.png\' width=\'20px\' height=\'100px\'>";
                 function handleTick(){
-                    if (mouseDown && swingTime <= 0 && shiftPressed) {
+                    if (mouseDown && swingTime <= 0) {
                             attackCharge += 1;
                     }
 
@@ -218,7 +217,7 @@
                     }
                     console.log(attackCharge);
                     manageClouds();
-                    if (swingTime <= 0 && heavyTime <= 0 && !mouseDown) {
+                    if (swingTime <= 0 && !mouseDown) {
                         wElement.style.opacity = 0;
                     }
                     if (combo == 1) {
@@ -226,43 +225,31 @@
                     } else {
                         wElement.innerHTML = "<img src=\'black-splinter-flipped.png\' width=\'20px\' height=\'100px\'>";
                     }
-                    if (swingTime <= 0 && heavyTime <= 0 && mouseDown) {
-                        wElement.style.transform = "translate(-50%, -50%) rotate(" + (degrees - combo*60 + 90*(combo - 1)) + "deg)";
-                        wElement.style.left = (window.screen.width*0.5 - 70*Math.cos(angle + combo*Math.PI/5)) + "px";
-                        wElement.style.top = (window.screen.height*0.5 - 70*Math.sin(angle + combo*Math.PI/5)) + "px";
+                    if (swingTime <= 0 && mouseDown) {
+                        wElement.style.transform = "translate(-50%, -50%) rotate(" + (degrees - combo*60 + 90*(combo - 1)) + "deg)" + "scaleX(" + (1 + (attackCharge/400)) + ") scaleY(" + (1 + (attackCharge/400)) + ")";
+                        wElement.style.left = ((window.screen.width*0.5 - (attackCharge/700 + 1)*(70*Math.cos(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
+                        wElement.style.top = ((window.screen.height*0.5 - (attackCharge/700 + 1)*(70*Math.sin(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
                         swingCurrentAngle = angle;
                         swingVel = 0;
-                        wElement.style.opacity = 0.1;
+                        wElement.style.opacity = Math.log(attackCharge)/100;
                     } else if(swingTime > 0){
-                        attackCharge = 0;
                         swingCurrentAngle += swingVel;
-                        wElement.style.transform = "translate(-50%, -50%) rotate(" + ((swingCurrentAngle*180/Math.PI) - combo*60 + 90*(combo-1)) + "deg)";
-                        wElement.style.left = (window.screen.width*0.5 - 70*Math.cos(swingCurrentAngle + combo*Math.PI/5)) + "px";
-                        wElement.style.top = (window.screen.height*0.5 - 70*Math.sin(swingCurrentAngle + combo*Math.PI/5)) + "px";
+                        wElement.style.transform = "translate(-50%, -50%) rotate(" + ((swingCurrentAngle*180/Math.PI) - combo*60 + 90*(combo-1)) + "deg)" + "scaleX(" + (1 + (attackCharge/400)) + ") scaleY(" + (1 + (attackCharge/400)) + ")";
+                        wElement.style.left = (window.screen.width*0.5 - (attackCharge/700 + 1)*(70*Math.cos(swingCurrentAngle + combo*Math.PI/5))) + "px";
+                        wElement.style.top = (window.screen.height*0.5 - (attackCharge/700 + 1)*(70*Math.sin(swingCurrentAngle + combo*Math.PI/5))) + "px";
                         if (swingTime > 74) {
-                            wElement.style.opacity = (parseFloat(wElement.style.opacity) + 0.015);
+                            wElement.style.opacity = (parseFloat(wElement.style.opacity) + 0.03);
                             swingVel += combo*0.00085;
                         } else {
                             swingVel -= combo*0.00085;
-                            wElement.style.opacity = (parseFloat(wElement.style.opacity) - 0.015);
+                            wElement.style.opacity = (parseFloat(wElement.style.opacity) - 0.03);
                         }
                         if (swingTime == 1) {
                             combo *= -1;
+                            attackCharge = 0;
                         }
                         swingTime -= 1;
-                    } else if (heavyTime >= 0) {
-                        console.log(heavyTime);
-                        attackCharge = 0;
-                        swingCurrentAngle += swingVel;
-                        wElement.style.transform = "translate(-50%, -50%) rotate(" + ((swingCurrentAngle*180/Math.PI) - combo*60 + 90*(combo-1)) + "deg)";
                         wElement.style.left = (window.screen.width*0.5 - 70*Math.cos(swingCurrentAngle + combo*Math.PI/5)) + "px";
-                        wElement.style.top = (window.screen.height*0.5 - 70*Math.sin(swingCurrentAngle + combo*Math.PI/5)) + "px";
-                        heavyTime -= 1;
-                        if (heavyTime == 1){
-                            combo *= -1;
-                        }
-                        swingVel += combo*0.0004;
-                        wElement.style.opacity = (parseFloat(wElement.style.opacity) + 0.002);
                     }
                 }
                 let intervalId = setInterval(() => handleTick(), 1);
