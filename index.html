@@ -12,7 +12,7 @@
                     position:absolute;
                     user-select: none;
                     transform: translate(-50%, -130%);
-                    z-index: -3;
+                    z-index: -2;
                     transform-origin: center 45%;
                 }
                 #weapon {
@@ -24,11 +24,14 @@
                 body {
 				    overflow: hidden;
                     height: 100%;
+                    user-select: none;
 				}
                 #background {
                     position:absolute;
                     transform:translate(-50%, -50%);
                     z-index: -100;
+                    user-select: none;
+                    -webkit-user-drag: none;
                 }
             </style>
         </head>
@@ -63,6 +66,8 @@
                 var mouseDown = false;
                 var attackCharge = 0;
                 var weaponBaseSize = 1;
+                var currParticleImage = "";
+                var AR = 100;
                 document.addEventListener('keydown', (event) => {
   				if (event.key === 'w' || event.key === 'W') {
      				   upPressed = true;
@@ -157,6 +162,79 @@
         					}
     					}
 				}
+                function Particle(x,y,angle,height,width,duration,fade, separate, opacity) {
+                    var particleElement = document.createElement("div");
+                    particleElement.classList.add('particle');
+                    particleElement.creationTime = Date.now();
+                    particleElement.duration = duration;
+                    particleElement.fade = fade;
+                    particleElement.angle = angle;
+                    document.body.appendChild(particleElement);
+                    particleElement.innerHTML = "<img src=\'" + currParticleImage + "\' width=\'" + width +"px\' height=\'"+ height + "px\'>";
+                    particleElement.style.position = "absolute";
+                    particleElement.style.top = y + "px";
+                    particleElement.style.left = x + "px";
+                    particleElement.style.transform = " translate(-50%, -50%) rotate(" + angle + "deg)";
+                    particleElement.separate = separate;
+                    particleElement.style.opacity = opacity;
+                    particleElement.style.zIndex = -3;
+                }
+                function manageParticles() {
+                        var particles = document.getElementsByClassName("particle");
+                        const time = Date.now();
+                        for (const particle of particles) {
+                            const sinceCreation = time - particle.creationTime;
+                            if (sinceCreation > particle.duration) {
+                                particle.remove();
+                            } else {
+                                particle.duration -= 1;
+                                particle.style.opacity = parseFloat(particle.style.opacity) - particle.fade;
+                                if (particle.separate == 1) {
+                                    particle.style.left = (parseFloat(particle.style.left) - xvel) + "px";
+                                    particle.style.top = (parseFloat(particle.style.top) - yvel) + "px";
+                                }
+                            }
+                        }
+                }
+                function Wisp() {
+                    var wispElement = document.createElement("div");
+                    var initAngle = 360*Math.random();
+                    wispElement.classList.add('wisp');
+                    wispElement.creationTime = Date.now();
+                    document.body.appendChild(wispElement);
+                    wispElement.innerHTML = "<img src=\'head.gif\' width=\'" + 64 + "px\' height=\'"+ 64 + "px\'>";
+                    wispElement.style.position = "absolute";
+                    wispElement.y = 0.5*window.screen.height + 2500*Math.sin(initAngle);
+                    wispElement.x = 0.5*window.screen.width + 2500*Math.cos(initAngle);
+                    wispElement.xvel = 0;
+                    wispElement.yvel = 0;
+                    wispElement.style.transform = " translate(-50%, -50%) rotate(0 deg)";
+                    wispElement.style.opacity = 1;
+                    wispElement.health = 100;
+                }
+                function manageWisps() {
+                        var wisps = document.getElementsByClassName("wisp");
+                            for (const wisp of wisps) {
+                                var angle = Math.atan2((0.5*window.screen.height - wisp.y) , (0.5*window.screen.width - wisp.x))
+                                wisp.style.left = wisp.x + "px";
+                                wisp.style.top = wisp.y + "px"
+                                wisp.style.transform = " translate(-50%, -50%) rotate(" + 180*angle/Math.PI +" deg)";
+                            if (wisp.health < 0) {
+                                wisp.remove();
+                            } else {
+                                wisp.x -= xvel;
+                                wisp.y -= yvel;
+                                wisp.xvel += 0.1*Math.cos(angle);
+                                wisp.yvel += 0.1*Math.sin(angle);
+                                wisp.xvel *= 0.9;
+                                wisp.yvel *= 0.9;
+                                wisp.x += wisp.xvel;
+                                wisp.y += wisp.yvel;
+                            }
+                        }
+                }
+
+
                 const torsoElement = document.getElementById('torso');
                 torsoElement.style.top = window.screen.height*0.5 + "px";
 				torsoElement.style.left = window.screen.width*0.5 + "px";
@@ -168,7 +246,7 @@
                 const bgElement = document.getElementById('background');
                 bgElement.style.top = window.screen.height*0.5 + "px";
 				bgElement.style.left = window.screen.width*0.5 + "px";
-                bgElement.innerHTML = "<img src=\'lobby.png\' width=\'500px\' height=\'500px\'>";
+                bgElement.innerHTML = "<img src=\'arena.gif\' width=\'5000px\' height=\'5000px\' draggable='false'>";
                 const wElement = document.getElementById('weapon');
                 wElement.innerHTML = "<img src=\'black-splinter.png\' width=\'20px\' height=\'100px\'>";
                 function handleTick(){
@@ -201,8 +279,8 @@
                         torsoElement.style.transform = "scaleX(-1) translate(50%, -50%)";
                         headElement.style.transform = "translate(-50%, -140%) rotate(" + degrees + "deg)";
                     }
-                    yvel *= 0.95;
-                    xvel *= 0.95;
+                    yvel *= 0.96;
+                    xvel *= 0.96;
                     bgElement.style.left = (parseFloat(bgElement.style.left) - xvel) + "px";
                     bgElement.style.top = (parseFloat(bgElement.style.top) - yvel) + "px";
                     iframes -= 1;
@@ -215,8 +293,9 @@
                         torsoElement.style.opacity = 1;
                         headElement.style.opacity = 1;
                     }
-                    console.log(attackCharge);
                     manageClouds();
+                    manageParticles();
+                    manageWisps();
                     if (swingTime <= 0 && !mouseDown) {
                         wElement.style.opacity = 0;
                     }
@@ -227,16 +306,18 @@
                     }
                     if (swingTime <= 0 && mouseDown) {
                         wElement.style.transform = "translate(-50%, -50%) rotate(" + (degrees - combo*60 + 90*(combo - 1)) + "deg)" + "scaleX(" + (1 + (attackCharge/400)) + ") scaleY(" + (1 + (attackCharge/400)) + ")";
-                        wElement.style.left = ((window.screen.width*0.5 - (attackCharge/700 + 1)*(70*Math.cos(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
-                        wElement.style.top = ((window.screen.height*0.5 - (attackCharge/700 + 1)*(70*Math.sin(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
+                        wElement.style.left = ((window.screen.width*0.5 - (attackCharge/550 + 1)*(70*Math.cos(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
+                        wElement.style.top = ((window.screen.height*0.5 - (attackCharge/550 + 1)*(70*Math.sin(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
                         swingCurrentAngle = angle;
                         swingVel = 0;
                         wElement.style.opacity = Math.log(attackCharge)/100;
                     } else if(swingTime > 0){
+                        currParticleImage = "sword-trail.png";
+                        Particle((window.screen.width*0.5 - (attackCharge/550 + 1)*(70*Math.cos(swingCurrentAngle + combo*Math.PI/7))), (window.screen.height*0.5 - (attackCharge/550 + 1)*(70*Math.sin(swingCurrentAngle + combo*Math.PI/7))), ((swingCurrentAngle*180/Math.PI) - combo*65 + 90*(combo-1)), (100*(1 + (attackCharge/400))), (25*(1 + (attackCharge/400))), 300, 0.033, 0, 1)
                         swingCurrentAngle += swingVel;
                         wElement.style.transform = "translate(-50%, -50%) rotate(" + ((swingCurrentAngle*180/Math.PI) - combo*60 + 90*(combo-1)) + "deg)" + "scaleX(" + (1 + (attackCharge/400)) + ") scaleY(" + (1 + (attackCharge/400)) + ")";
-                        wElement.style.left = (window.screen.width*0.5 - (attackCharge/700 + 1)*(70*Math.cos(swingCurrentAngle + combo*Math.PI/5))) + "px";
-                        wElement.style.top = (window.screen.height*0.5 - (attackCharge/700 + 1)*(70*Math.sin(swingCurrentAngle + combo*Math.PI/5))) + "px";
+                        wElement.style.left = (window.screen.width*0.5 - (attackCharge/550 + 1)*(70*Math.cos(swingCurrentAngle + combo*Math.PI/5))) + "px";
+                        wElement.style.top = (window.screen.height*0.5 - (attackCharge/550 + 1)*(70*Math.sin(swingCurrentAngle + combo*Math.PI/5))) + "px";
                         if (swingTime > 74) {
                             wElement.style.opacity = (parseFloat(wElement.style.opacity) + 0.03);
                             swingVel += combo*0.00085;
@@ -252,6 +333,7 @@
                     }
                 }
                 let intervalId = setInterval(() => handleTick(), 1);
+                Wisp();
             </script>
         </body>
     </html>
