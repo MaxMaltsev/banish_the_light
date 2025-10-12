@@ -68,6 +68,7 @@
                 var weaponBaseSize = 1;
                 var currParticleImage = "";
                 var AR = 100;
+                var weaponAngle = 0;
                 document.addEventListener('keydown', (event) => {
   				if (event.key === 'w' || event.key === 'W') {
      				   upPressed = true;
@@ -162,12 +163,11 @@
         					}
     					}
 				}
-                function Particle(x,y,angle,height,width,duration,fade, separate, opacity) {
+                function Particle(x,y,angle,height,width,duration, separate, hvel, vvel) {
                     var particleElement = document.createElement("div");
                     particleElement.classList.add('particle');
                     particleElement.creationTime = Date.now();
                     particleElement.duration = duration;
-                    particleElement.fade = fade;
                     particleElement.angle = angle;
                     document.body.appendChild(particleElement);
                     particleElement.innerHTML = "<img src=\'" + currParticleImage + "\' width=\'" + width +"px\' height=\'"+ height + "px\'>";
@@ -176,19 +176,22 @@
                     particleElement.style.left = x + "px";
                     particleElement.style.transform = " translate(-50%, -50%) rotate(" + angle + "deg)";
                     particleElement.separate = separate;
-                    particleElement.style.opacity = opacity;
                     particleElement.style.zIndex = -3;
+                    particleElement.hvel = hvel;
+                    particleElement.vvel = vvel;
                 }
                 function manageParticles() {
                         var particles = document.getElementsByClassName("particle");
                         const time = Date.now();
                         for (const particle of particles) {
                             const sinceCreation = time - particle.creationTime;
+                            particle.style.left = (parseFloat(particle.style.left) + particle.hvel) + "px";
+                            particle.style.top = (parseFloat(particle.style.top) + particle.vvel) + "px";
                             if (sinceCreation > particle.duration) {
                                 particle.remove();
                             } else {
                                 particle.duration -= 1;
-                                particle.style.opacity = parseFloat(particle.style.opacity) - particle.fade;
+                                particle.style.opacity = (particle.duration - sinceCreation)/particle.duration;
                                 if (particle.separate == 1) {
                                     particle.style.left = (parseFloat(particle.style.left) - xvel) + "px";
                                     particle.style.top = (parseFloat(particle.style.top) - yvel) + "px";
@@ -202,30 +205,66 @@
                     wispElement.classList.add('wisp');
                     wispElement.creationTime = Date.now();
                     document.body.appendChild(wispElement);
-                    wispElement.innerHTML = "<img src=\'head.gif\' width=\'" + 64 + "px\' height=\'"+ 64 + "px\'>";
+                    wispElement.innerHTML = "<img src=\'wisp.gif\' width=\'" + 64 + "px\' height=\'"+ 64 + "px\'>";
                     wispElement.style.position = "absolute";
                     wispElement.y = 0.5*window.screen.height + 2500*Math.sin(initAngle);
                     wispElement.x = 0.5*window.screen.width + 2500*Math.cos(initAngle);
                     wispElement.xvel = 0;
                     wispElement.yvel = 0;
-                    wispElement.style.transform = " translate(-50%, -50%) rotate(0 deg)";
+                    wispElement.style.transform = " translate(-50%, -50%) rotate(0deg)";
                     wispElement.style.opacity = 1;
                     wispElement.health = 100;
+                    wispElement.style.transformOrigin = "center center";
+                    wispElement.watchDistance = 400 + 200*(Math.random() - Math.random());
+                    wispElement.meleeVul = true;
                 }
                 function manageWisps() {
                         var wisps = document.getElementsByClassName("wisp");
+                        var swordXOverlap = false;
+                        var swordYOverlap = false;
                             for (const wisp of wisps) {
-                                var angle = Math.atan2((0.5*window.screen.height - wisp.y) , (0.5*window.screen.width - wisp.x))
-                                wisp.style.left = wisp.x + "px";
-                                wisp.style.top = wisp.y + "px"
-                                wisp.style.transform = " translate(-50%, -50%) rotate(" + 180*angle/Math.PI +" deg)";
-                            if (wisp.health < 0) {
+                                if (swingTime <= 0) {
+                                    wisp.meleeVul = true;
+                                }
+                                var wispAngle = Math.atan2((0.5*window.screen.height - wisp.y) , (0.5*window.screen.width - wisp.x));
+                                const relX = wisp.x - parseFloat(wElement.style.left);
+                                const relY = wisp.y - parseFloat(wElement.style.top);
+                                var rotatedX = (relX)*Math.cos(-1*weaponAngle) - (relY)*Math.sin(-1*weaponAngle);
+                                var rotatedY = (relX)*Math.sin(-1*weaponAngle) + (relY)*Math.cos(-1*weaponAngle);
+                                    if ((-65*(1 + (attackCharge/400)) - 32) <= rotatedX && rotatedX <= (60*(1 + (attackCharge/400)) + 32)) {
+                                        swordXOverlap = true;
+                                    } else {
+                                        swordXOverlap = false;
+                                    }
+                                    if ((-13*(1 + (attackCharge/400)) - 32) <= rotatedY && rotatedY <= (13*(1 + (attackCharge/400)) + 32)) {
+                                        swordYOverlap = true;
+                                    } else {
+                                        swordYOverlap = false;
+                                    }
+                                if (wisp.meleeVul == true && swordXOverlap == true && swingTime > 0 && swordYOverlap == true) {
+                                    wisp.health -= AR;
+                                    wisp.meleeVul = false;
+                                }
+                            if (wisp.health <= 0) {
+                                for(i = 0; i < 5; i++) {
+                                    currParticleImage = "cloud.gif";
+                                    Particle(wisp.x + 16*(Math.random() - Math.random()), wisp.y + 16*(Math.random() - Math.random()), 360*Math.random(), 64, 64, 1000, 1, 0.5*(Math.random() - Math.random()), 0.5*(Math.random() - Math.random()))
+                                }
                                 wisp.remove();
                             } else {
+                                wisp.style.left = wisp.x + "px";
+                                wisp.style.top = wisp.y + "px"
+                                wisp.style.transform = "translate(-50%, -50%) rotate(" + (180*wispAngle)/(Math.PI) +"deg)";
                                 wisp.x -= xvel;
                                 wisp.y -= yvel;
-                                wisp.xvel += 0.1*Math.cos(angle);
-                                wisp.yvel += 0.1*Math.sin(angle);
+                                if (Math.sqrt(((0.5*window.screen.height - wisp.y)*(0.5*window.screen.height - wisp.y))+((0.5*window.screen.width - wisp.x)*(0.5*window.screen.width - wisp.x))) >= wisp.watchDistance){
+                                    wisp.xvel += 0.2*Math.cos(wispAngle);
+                                    wisp.yvel += 0.2*Math.sin(wispAngle);
+                                } else {
+                                    wisp.xvel -= 0.1*Math.cos(wispAngle);
+                                    wisp.yvel -= 0.1*Math.sin(wispAngle);
+                                }
+                                
                                 wisp.xvel *= 0.9;
                                 wisp.yvel *= 0.9;
                                 wisp.x += wisp.xvel;
@@ -250,6 +289,7 @@
                 const wElement = document.getElementById('weapon');
                 wElement.innerHTML = "<img src=\'black-splinter.png\' width=\'20px\' height=\'100px\'>";
                 function handleTick(){
+                    weaponAngle = (Math.PI)*((swingCurrentAngle*180/Math.PI) - combo*60 + 90*(combo-1))/180;
                     if (mouseDown && swingTime <= 0) {
                             attackCharge += 1;
                     }
@@ -313,7 +353,7 @@
                         wElement.style.opacity = Math.log(attackCharge)/100;
                     } else if(swingTime > 0){
                         currParticleImage = "sword-trail.png";
-                        Particle((window.screen.width*0.5 - (attackCharge/550 + 1)*(70*Math.cos(swingCurrentAngle + combo*Math.PI/7))), (window.screen.height*0.5 - (attackCharge/550 + 1)*(70*Math.sin(swingCurrentAngle + combo*Math.PI/7))), ((swingCurrentAngle*180/Math.PI) - combo*65 + 90*(combo-1)), (100*(1 + (attackCharge/400))), (25*(1 + (attackCharge/400))), 300, 0.033, 0, 1)
+                        Particle((window.screen.width*0.5 - (attackCharge/550 + 1)*(70*Math.cos(swingCurrentAngle + combo*Math.PI/7))), (window.screen.height*0.5 - (attackCharge/550 + 1)*(70*Math.sin(swingCurrentAngle + combo*Math.PI/7))), ((swingCurrentAngle*180/Math.PI) - combo*65 + 90*(combo-1)), (100*(1 + (attackCharge/400))), (25*(1 + (attackCharge/400))), 300, 0, 0, 0)
                         swingCurrentAngle += swingVel;
                         wElement.style.transform = "translate(-50%, -50%) rotate(" + ((swingCurrentAngle*180/Math.PI) - combo*60 + 90*(combo-1)) + "deg)" + "scaleX(" + (1 + (attackCharge/400)) + ") scaleY(" + (1 + (attackCharge/400)) + ")";
                         wElement.style.left = (window.screen.width*0.5 - (attackCharge/550 + 1)*(70*Math.cos(swingCurrentAngle + combo*Math.PI/5))) + "px";
@@ -332,8 +372,11 @@
                         swingTime -= 1;
                     }
                 }
+
                 let intervalId = setInterval(() => handleTick(), 1);
-                Wisp();
+                for(i = 0; i < 40; i++){
+                    Wisp();
+                }
             </script>
         </body>
     </html>
