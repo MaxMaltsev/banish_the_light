@@ -4,6 +4,7 @@
             <style>
                 #torso {
                     position:absolute;
+                    -webkit-user-drag: none;
                     user-select: none;
                     transform: translate(-50%, -50%);
                     z-index: -5;
@@ -11,6 +12,7 @@
                 #head {
                     position:absolute;
                     user-select: none;
+                    -webkit-user-drag: none;
                     transform: translate(-50%, -130%);
                     z-index: -2;
                     transform-origin: center 45%;
@@ -18,11 +20,13 @@
                 #weapon {
                     position: absolute;
                     user-select: none;
+                    -webkit-user-drag: none;
                     transform: translate(-50%, -50%);
                     z-index: -4;
                 }
                 body {
 				    overflow: hidden;
+                    -webkit-user-drag: none;
                     height: 100%;
                     user-select: none;
 				}
@@ -33,6 +37,16 @@
                     user-select: none;
                     -webkit-user-drag: none;
                 }
+                #playerHpBar {
+                    -webkit-user-drag: none;
+                    margin-left: 5px;
+                    margin-top:5px;
+                    width:300px;
+                    height:15px;
+                    z-index: 100;
+                    user-select: none;
+                    background-color: rgb(27, 27, 27);
+                }
             </style>
         </head>
         <body>
@@ -40,6 +54,7 @@
             <div id = "background"></div>
             <div id = "head"></div>
             <div id = "weapon"></div>
+            <div id = "playerHpBar"></div>
             <script>
                 const screenWidth = window.screen.width;
                 const screenHeight = window.screen.height;
@@ -69,6 +84,8 @@
                 var currParticleImage = "";
                 var AR = 100;
                 var weaponAngle = 0;
+                var playerHealth = 500;
+                var currProjectileImage = "";
                 document.addEventListener('keydown', (event) => {
   				if (event.key === 'w' || event.key === 'W') {
      				   upPressed = true;
@@ -127,6 +144,9 @@
                         swingVel = 0;
                     }
                 });
+                document.addEventListener('contextmenu', function(event) {
+                    event.preventDefault();
+                });
                 function spawnClouds() {
     				var cloudSize = Math.random();
    				    var cloudElement = document.createElement("div");
@@ -155,15 +175,15 @@
         					} else {
 							cloud.x = parseFloat(cloud.style.left);
 							cloud.y = parseFloat(cloud.style.top);
-            						cloud.style.opacity = (cloud_LIFETIME - sinceCreation) / cloud_LIFETIME;
-            						cloud.style.left = parseFloat(cloud.style.left) + cloud.speed * (Math.cos(cloud.angle)) / (1 - sinceCreation / 200) + "px";
-            						cloud.style.top = parseFloat(cloud.style.top) + cloud.speed * (Math.sin(cloud.angle)) / (1 - sinceCreation / 200) + "px";
-                                    cloud.style.left = (parseFloat(cloud.style.left) - xvel) + "px";
-                                    cloud.style.top = (parseFloat(cloud.style.top) - yvel) + "px";
+            					cloud.style.opacity = (cloud_LIFETIME - sinceCreation) / cloud_LIFETIME;
+            					cloud.style.left = parseFloat(cloud.style.left) + cloud.speed * (Math.cos(cloud.angle)) / (1 - sinceCreation / 200) + "px";
+            					cloud.style.top = parseFloat(cloud.style.top) + cloud.speed * (Math.sin(cloud.angle)) / (1 - sinceCreation / 200) + "px";
+                                cloud.style.left = (parseFloat(cloud.style.left) - xvel) + "px";
+                                cloud.style.top = (parseFloat(cloud.style.top) - yvel) + "px";
         					}
     					}
 				}
-                function Particle(x,y,angle,height,width,duration, separate, hvel, vvel) {
+                function Particle(x,y,angle,height,width,duration, separate, hvel, vvel, fade) {
                     var particleElement = document.createElement("div");
                     particleElement.classList.add('particle');
                     particleElement.creationTime = Date.now();
@@ -199,6 +219,64 @@
                             }
                         }
                 }
+                function Projectile(x,y,radius,duration, homing, hvel, vvel, fade, damage, destroy) {
+                    var projectileElement = document.createElement("div");
+                    projectileElement.classList.add('projectile');
+                    projectileElement.creationTime = Date.now();
+                    projectileElement.duration = duration;
+                    document.body.appendChild(projectileElement);
+                    projectileElement.innerHTML = "<img src=\'" + currProjectileImage + "\' width=\'" + 2*radius +"px\' height=\'"+ 2*radius + "px\'>";
+                    projectileElement.style.position = "absolute";
+                    projectileElement.style.top = y + "px";
+                    projectileElement.style.left = x + "px";
+                    projectileElement.style.transform = " translate(-50%, -50%) rotate(" + 0 + "deg)";
+                    projectileElement.style.zIndex = -1;
+                    projectileElement.hvel = hvel;
+                    projectileElement.vvel = vvel;
+                    projectileElement.homing = homing;
+                    projectileElement.fade = fade;
+                    projectileElement.damage = damage;
+                    projectileElement.destroy = destroy;
+                    projectileElement.radius = radius;
+                    projectileElement.canHit = true;
+                }
+                function manageProjectiles() {
+                        var projectiles = document.getElementsByClassName("projectile");
+                        const time = Date.now();
+                        for (const projectile of projectiles) {
+                            var projAngle = Math.atan2((0.5*window.screen.height - parseFloat(projectile.style.top)) , (0.5*window.screen.width - parseFloat(projectile.style.left)));
+                            const sinceCreation = time - projectile.creationTime;
+                            projectile.style.left = (parseFloat(projectile.style.left) + projectile.hvel) + "px";
+                            projectile.style.top = (parseFloat(projectile.style.top) + projectile.vvel) + "px";
+                            if (sinceCreation > projectile.duration) {
+                                projectile.remove();
+                            } else {
+                                projectile.hvel += (projectile.homing)*Math.cos(projAngle);
+                                projectile.vvel += (projectile.homing)*Math.sin(projAngle);
+                                projectile.style.transform = " translate(-50%, -50%) rotate(" + (180*Math.atan2(projectile.vvel, projectile.hvel)/Math.PI) + "deg)";
+                                if (Math.sqrt((0.5*window.screen.width - parseFloat(projectile.style.left))*(0.5*window.screen.width - parseFloat(projectile.style.left)) + (0.5*window.screen.height - parseFloat(projectile.style.top))*(0.5*window.screen.height - parseFloat(projectile.style.top))) <= (20 + projectile.radius)) {
+                                    if (swingTime <= 0 && projectile.canHit == true) {
+                                        playerHealth -= projectile.damage;
+                                        if (projectile.destroy == true) {
+                                            projectile.canHit = false;
+                                            projectile.remove();
+                                            continue;
+                                        }
+                                    } else {
+                                        projectile.hvel *= -1.5;
+                                        projectile.vvel *= -1.5;
+                                        projectile.style.left = (parseFloat(projectile.style.left) - (30 + projectile.radius)*Math.cos(projAngle)) + "px";
+                                        projectile.style.top = (parseFloat(projectile.style.top) - (30 + projectile.radius)*Math.sin(projAngle)) + "px";
+                                    }
+                                }
+                                if (projectile.fade == true) {
+                                    projectile.style.opacity = (projectile.duration - sinceCreation)/projectile.duration;
+                                }
+                                    projectile.style.left = (parseFloat(projectile.style.left) - xvel) + "px";
+                                    projectile.style.top = (parseFloat(projectile.style.top) - yvel) + "px";
+                            }
+                        }
+                }
                 function Wisp() {
                     var wispElement = document.createElement("div");
                     var initAngle = 360*Math.random();
@@ -207,6 +285,7 @@
                     document.body.appendChild(wispElement);
                     wispElement.innerHTML = "<img src=\'wisp.gif\' width=\'" + 64 + "px\' height=\'"+ 64 + "px\'>";
                     wispElement.style.position = "absolute";
+                    wispElement.style.userSelect = 'none';
                     wispElement.y = 0.5*window.screen.height + 2500*Math.sin(initAngle);
                     wispElement.x = 0.5*window.screen.width + 2500*Math.cos(initAngle);
                     wispElement.xvel = 0;
@@ -217,16 +296,23 @@
                     wispElement.style.transformOrigin = "center center";
                     wispElement.watchDistance = 400 + 200*(Math.random() - Math.random());
                     wispElement.meleeVul = true;
+                    wispElement.shotCooldown = 200;
                 }
                 function manageWisps() {
                         var wisps = document.getElementsByClassName("wisp");
                         var swordXOverlap = false;
                         var swordYOverlap = false;
                             for (const wisp of wisps) {
+                                var wispAngle = Math.atan2((0.5*window.screen.height - wisp.y) , (0.5*window.screen.width - wisp.x));
+                                wisp.shotCooldown -= 1;
+                                if (wisp.shotCooldown <= 0) {
+                                    wisp.shotCooldown = 200;
+                                    currProjectileImage = "lightbolt.png";
+                                    Projectile(wisp.x, wisp.y, 64, 3000, 0.01, 3*Math.cos(wispAngle), 3*Math.sin(wispAngle), true, 25, true);
+                                }
                                 if (swingTime <= 0) {
                                     wisp.meleeVul = true;
                                 }
-                                var wispAngle = Math.atan2((0.5*window.screen.height - wisp.y) , (0.5*window.screen.width - wisp.x));
                                 const relX = wisp.x - parseFloat(wElement.style.left);
                                 const relY = wisp.y - parseFloat(wElement.style.top);
                                 var rotatedX = (relX)*Math.cos(-1*weaponAngle) - (relY)*Math.sin(-1*weaponAngle);
@@ -242,13 +328,14 @@
                                         swordYOverlap = false;
                                     }
                                 if (wisp.meleeVul == true && swordXOverlap == true && swingTime > 0 && swordYOverlap == true) {
-                                    wisp.health -= AR;
+                                    wisp.health -= AR*(1 + (attackCharge/400));
+                                    Particle(wisp.x + 16*(Math.random() - Math.random()), wisp.y + 16*(Math.random() - Math.random()), 360*Math.random(), 16, 16, 250, 1, 2*(Math.random() - Math.random()), 2*(Math.random() - Math.random()));
                                     wisp.meleeVul = false;
                                 }
                             if (wisp.health <= 0) {
-                                for(i = 0; i < 5; i++) {
+                                for(i = 0; i < 3; i++) {
                                     currParticleImage = "cloud.gif";
-                                    Particle(wisp.x + 16*(Math.random() - Math.random()), wisp.y + 16*(Math.random() - Math.random()), 360*Math.random(), 64, 64, 1000, 1, 0.5*(Math.random() - Math.random()), 0.5*(Math.random() - Math.random()))
+                                    Particle(wisp.x + 16*(Math.random() - Math.random()), wisp.y + 16*(Math.random() - Math.random()), 360*Math.random(), 64, 64, 1000, 1, 0.5*(Math.random() - Math.random()), 0.5*(Math.random() - Math.random()));
                                 }
                                 wisp.remove();
                             } else {
@@ -288,7 +375,12 @@
                 bgElement.innerHTML = "<img src=\'arena.gif\' width=\'5000px\' height=\'5000px\' draggable='false'>";
                 const wElement = document.getElementById('weapon');
                 wElement.innerHTML = "<img src=\'black-splinter.png\' width=\'20px\' height=\'100px\'>";
+                const playerHpElement = document.getElementById('playerHpBar');
                 function handleTick(){
+                    playerHpElement.style.width = playerHealth + "px";
+                    if (playerHealth > 500){
+                        playerHealth = 500;
+                    }
                     weaponAngle = (Math.PI)*((swingCurrentAngle*180/Math.PI) - combo*60 + 90*(combo-1))/180;
                     if (mouseDown && swingTime <= 0) {
                             attackCharge += 1;
@@ -336,6 +428,7 @@
                     manageClouds();
                     manageParticles();
                     manageWisps();
+                    manageProjectiles();
                     if (swingTime <= 0 && !mouseDown) {
                         wElement.style.opacity = 0;
                     }
@@ -372,9 +465,9 @@
                         swingTime -= 1;
                     }
                 }
-
+                
                 let intervalId = setInterval(() => handleTick(), 1);
-                for(i = 0; i < 40; i++){
+                for(i = 0; i < 10; i++){
                     Wisp();
                 }
             </script>
