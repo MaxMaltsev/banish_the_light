@@ -87,6 +87,8 @@
                 var playerHealth = 500;
                 var currProjectileImage = "";
                 var random = 0;
+                var barrageTime = 0;
+                var barrageCooldown = 0;
                 document.addEventListener('keydown', (event) => {
   				if (event.key === 'w' || event.key === 'W') {
      				   upPressed = true;
@@ -137,10 +139,11 @@
                 addEventListener('mouseup', function(event) {
                     if (event.button === 0 && swingTime <= 0) {
                         mouseDown = false;
-                        swingTime = 150;
-                        wElement.style.transform = "translate(-50%, -50%) rotate(" + (degrees - combo*60 + 90*(combo - 1)) + "deg)" + "scaleX(" + (1 + (attackCharge/400)) + ") scaleY(" + (1 + (attackCharge/400)) + ")";
-                        wElement.style.left = ((window.screen.width*0.5 - (attackCharge/700 + 1)*(70*Math.cos(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
-                        wElement.style.top = ((window.screen.height*0.5 - (attackCharge/700 + 1)*(70*Math.sin(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
+                        currParticleImage = "slash.gif";
+                        Particle(window.screen.width*0.5 + 5*random - (attackCharge/400 + 1)*20*Math.cos(angle), window.screen.height*0.5 + 5*random - (attackCharge/400 + 1)*20*Math.sin(angle), (degrees + 5*random), 120*(attackCharge/400 + 1)*(1 + Math.random())*0.5, 250*(attackCharge/400 + 1), 350, 0, 0.5*Math.cos(angle), 0.5*Math.sin(angle), 0);
+                        swingTime = 75;
+                        xvel += (attackCharge/400 + 1)*6*Math.cos(angle);
+                        yvel += (attackCharge/400 + 1)*6*Math.sin(angle);
                         swingCurrentAngle = angle;
                         swingVel = 0;
                     }
@@ -191,7 +194,7 @@
                     particleElement.duration = duration;
                     particleElement.angle = angle;
                     document.body.appendChild(particleElement);
-                    particleElement.innerHTML = "<img src=\'" + currParticleImage + "\' width=\'" + width +"px\' height=\'"+ height + "px\'>";
+                    particleElement.innerHTML = "<img src=\'" + currParticleImage + "?t=" + Date.now() + "\'width=\'" + width +"px\' height=\'"+ height + "px\'>";
                     particleElement.style.position = "absolute";
                     particleElement.style.top = y + "px";
                     particleElement.style.left = x + "px";
@@ -200,6 +203,10 @@
                     particleElement.style.zIndex = -3;
                     particleElement.hvel = hvel;
                     particleElement.vvel = vvel;
+                    particleElement.width = width;
+                    particleElement.height = height;
+                    particleElement.fade = fade;
+                    particleElement.ogimage = currParticleImage;
                 }
                 function manageParticles() {
                         var particles = document.getElementsByClassName("particle");
@@ -211,8 +218,9 @@
                             if (sinceCreation > particle.duration) {
                                 particle.remove();
                             } else {
-                                particle.duration -= 1;
-                                particle.style.opacity = (particle.duration - sinceCreation)/particle.duration;
+                                if (particle.fade == 1) {
+                                    particle.style.opacity = (particle.duration - sinceCreation)/particle.duration;
+                                }
                                 if (particle.separate == 1) {
                                     particle.style.left = (parseFloat(particle.style.left) - xvel) + "px";
                                     particle.style.top = (parseFloat(particle.style.top) - yvel) + "px";
@@ -220,7 +228,7 @@
                             }
                         }
                 }
-                function Projectile(x,y,radius,duration, homing, hvel, vvel, fade, damage, destroy, slow) {
+                function Projectile(x,y,radius,duration, homing, hvel, vvel, fade, damage, destroy, slow, turn) {
                     var projectileElement = document.createElement("div");
                     projectileElement.classList.add('projectile');
                     projectileElement.creationTime = Date.now();
@@ -241,6 +249,7 @@
                     projectileElement.radius = radius;
                     projectileElement.canHit = true;
                     projectileElement.slow = slow;
+                    projectileElement.turn = turn;
                 }
                 function manageProjectiles() {
                         var projectiles = document.getElementsByClassName("projectile");
@@ -255,10 +264,15 @@
                             } else {
                                 projectile.hvel += (projectile.homing)*Math.cos(projAngle);
                                 projectile.vvel += (projectile.homing)*Math.sin(projAngle);
-                                projectile.style.transform = " translate(-50%, -50%) rotate(" + (180*Math.atan2(projectile.vvel, projectile.hvel)/Math.PI) + "deg)";
+                                if (projectile.turn == true) {
+                                    projectile.style.transform = " translate(-50%, -50%) rotate(" + (360*Math.random()) + "deg)";
+                                } else {
+                                    projectile.style.transform = " translate(-50%, -50%) rotate(" + (180*Math.atan2(projectile.vvel, projectile.hvel)/Math.PI) + "deg)";
+                                }
                                 if (Math.sqrt((0.5*window.screen.width - parseFloat(projectile.style.left))*(0.5*window.screen.width - parseFloat(projectile.style.left)) + (0.5*window.screen.height - parseFloat(projectile.style.top))*(0.5*window.screen.height - parseFloat(projectile.style.top))) <= (20 + projectile.radius) && iframes <= 0) {
                                     if (swingTime <= 0 && projectile.canHit == true) {
                                         playerHealth -= projectile.damage;
+                                        iframes = 100;
                                         if (projectile.destroy == true) {
                                             projectile.canHit = false;
                                             projectile.remove();
@@ -276,7 +290,7 @@
                             projectile.vvel *= projectile.slow;
                         }
                 }
-                function Wisp() {
+                function Wisp(baseCooldown) {
                     var wispElement = document.createElement("div");
                     var initAngle = 360*Math.random();
                     wispElement.classList.add('wisp');
@@ -295,7 +309,8 @@
                     wispElement.style.transformOrigin = "center center";
                     wispElement.watchDistance = 400 + 200*(Math.random() - Math.random());
                     wispElement.meleeVul = true;
-                    wispElement.shotCooldown = 300;
+                    wispElement.shotCooldown = baseCooldown;
+                    wispElement.baseCooldown = baseCooldown;
                 }
                 function manageWisps() {
                         var wisps = document.getElementsByClassName("wisp");
@@ -305,36 +320,46 @@
                                 var wispAngle = Math.atan2((0.5*window.screen.height - wisp.y) , (0.5*window.screen.width - wisp.x));
                                 wisp.shotCooldown -= 1;
                                 if (wisp.shotCooldown <= 0) {
-                                    wisp.shotCooldown = 300;
-                                    currProjectileImage = "lightball.gif";
-                                    Projectile(wisp.x, wisp.y, 16, 3000, 0, 5*Math.cos(wispAngle), 5*Math.sin(wispAngle), true, 25, true, 1);
+                                    wisp.shotCooldown = wisp.baseCooldown;
+                                    currProjectileImage = "lightbolt.png";
+                                    Projectile(wisp.x, wisp.y, 32, 1000, 0.02, 5*Math.cos(wispAngle + 0.1*(Math.random() - Math.random())), 5*Math.sin(wispAngle + 0.1*(Math.random() - Math.random())), true, 25, true, 1, false);
                                 }
                                 if (swingTime <= 0) {
                                     wisp.meleeVul = true;
                                 }
-                                const relX = wisp.x - parseFloat(wElement.style.left);
-                                const relY = wisp.y - parseFloat(wElement.style.top);
-                                var rotatedX = (relX)*Math.cos(-1*weaponAngle) - (relY)*Math.sin(-1*weaponAngle);
-                                var rotatedY = (relX)*Math.sin(-1*weaponAngle) + (relY)*Math.cos(-1*weaponAngle);
-                                    if ((-65*(1 + (attackCharge/400)) - 32) <= rotatedX && rotatedX <= (60*(1 + (attackCharge/400)) + 32)) {
+                                const relX = wisp.x - 0.5*window.screen.width;
+                                const relY = wisp.y - 0.5*window.screen.height;
+                                var rotatedX = (relX)*Math.cos(-1*angle) - (relY)*Math.sin(-1*angle);
+                                var rotatedY = (relX)*Math.sin(-1*angle) + (relY)*Math.cos(-1*angle);
+                                    if ((-16*(1 + (attackCharge/400)) - 32) <= rotatedX && rotatedX <= (100*(1 + (attackCharge/400)) + 32)) {
                                         swordXOverlap = true;
                                     } else {
                                         swordXOverlap = false;
                                     }
-                                    if ((-13*(1 + (attackCharge/400)) - 32) <= rotatedY && rotatedY <= (13*(1 + (attackCharge/400)) + 32)) {
+                                    if ((-50*(1 + (attackCharge/400)) - 32) <= rotatedY && rotatedY <= (50*(1 + (attackCharge/400)) + 32)) {
                                         swordYOverlap = true;
                                     } else {
                                         swordYOverlap = false;
                                     }
                                 if (wisp.meleeVul == true && swordXOverlap == true && swingTime > 0 && swordYOverlap == true) {
                                     wisp.health -= AR*(1 + (attackCharge/400));
-                                    Particle(wisp.x + 16*(Math.random() - Math.random()), wisp.y + 16*(Math.random() - Math.random()), 360*Math.random(), 16, 16, 250, 1, 2*(Math.random() - Math.random()), 2*(Math.random() - Math.random()));
+                                    currParticleImage = "cloud.gif";
+                                    Particle(wisp.x + 16*(Math.random() - Math.random()), wisp.y + 16*(Math.random() - Math.random()), 360*Math.random(), 32, 32, 1000, 1, 1*(Math.random() - Math.random()), 1*(Math.random() - Math.random()), 1);
+                                    wisp.xvel += (1 + (attackCharge/400))*AR*0.1*Math.cos(angle);
+                                    wisp.yvel += (1 + (attackCharge/400))*AR*0.1*Math.sin(angle);
                                     wisp.meleeVul = false;
+                                }
+                                if (Math.sqrt((0.5*window.screen.width - parseFloat(wisp.style.left))*(0.5*window.screen.width - parseFloat(wisp.style.left)) + (0.5*window.screen.height - parseFloat(wisp.style.top))*(0.5*window.screen.height - parseFloat(wisp.style.top))) <= (200 - 0.5*barrageTime) && barrageTime >= 0) {
+                                    currParticleImage = "cloud.gif";
+                                    wisp.health -= 10;
+                                    Particle(wisp.x + 16*(Math.random() - Math.random()), wisp.y + 16*(Math.random() - Math.random()), 360*Math.random(), 32, 32, 1000, 1, 1*(Math.random() - Math.random()), 1*(Math.random() - Math.random()), 1);
+                                    wisp.xvel -= (0.1*Math.cos(wispAngle));
+                                    wisp.yvel -= (0.1*Math.sin(wispAngle));
                                 }
                             if (wisp.health <= 0) {
                                 for(i = 0; i < 3; i++) {
                                     currParticleImage = "cloud.gif";
-                                    Particle(wisp.x + 16*(Math.random() - Math.random()), wisp.y + 16*(Math.random() - Math.random()), 360*Math.random(), 64, 64, 1000, 1, 0.5*(Math.random() - Math.random()), 0.5*(Math.random() - Math.random()));
+                                    Particle(wisp.x + 16*(Math.random() - Math.random()), wisp.y + 16*(Math.random() - Math.random()), 360*Math.random(), 64, 64, 1000, 1, 0.5*(Math.random() - Math.random()), 0.5*(Math.random() - Math.random()), 1);
                                 }
                                 wisp.remove();
                             } else {
@@ -351,10 +376,130 @@
                                     wisp.yvel -= 0.1*Math.sin(wispAngle);
                                 }
                                 
-                                wisp.xvel *= 0.9;
-                                wisp.yvel *= 0.9;
+                                wisp.xvel *= 0.92;
+                                wisp.yvel *= 0.92;
                                 wisp.x += wisp.xvel;
                                 wisp.y += wisp.yvel;
+                            }
+                        }
+                }
+
+                function Runner(baseCooldown) {
+                    var runnerElement = document.createElement("div");
+                    var initAngle = 360*Math.random();
+                    runnerElement.classList.add('runner');
+                    runnerElement.creationTime = Date.now();
+                    document.body.appendChild(runnerElement);
+                    runnerElement.innerHTML = "<img src=\'runner.gif\' width=\'" + 100 + "px\' height=\'"+ 100 + "px\'>";
+                    runnerElement.style.position = "absolute";
+                    runnerElement.style.userSelect = 'none';
+                    runnerElement.y = 0.5*window.screen.height + 2500*Math.sin(angle);
+                    runnerElement.x = 0.5*window.screen.width + 2500*Math.cos(angle);
+                    runnerElement.xvel = 0;
+                    runnerElement.yvel = 0;
+                    runnerElement.style.transform = " translate(-50%, -50%) rotate(0deg)";
+                    runnerElement.style.opacity = 1;
+                    runnerElement.health = 1000;
+                    runnerElement.style.transformOrigin = "center center";
+                    runnerElement.meleeVul = true;
+                    runnerElement.meleeCooldown = baseCooldown;
+                    runnerElement.baseCooldown = baseCooldown;
+                    runnerElement.meleeTime = 100;
+                    runnerElement.strafeSpeed = 0.02*(Math.random() - Math.random());
+                }
+                function manageRunners() {
+                        var runners = document.getElementsByClassName("runner");
+                        var swordXOverlap = false;
+                        var swordYOverlap = false;
+                            for (const runner of runners) {
+                                var runnerAngle = Math.atan2((0.5*window.screen.height - runner.y) , (0.5*window.screen.width - runner.x));
+                                runner.meleeCooldown -= 1;
+                                if (runner.meleeCooldown <= 0 && Math.sqrt(((0.5*window.screen.height - runner.y)*(0.5*window.screen.height - runner.y))+((0.5*window.screen.width - runner.x)*(0.5*window.screen.width - runner.x))) <= 150) {
+                                    runner.meleeTime = 100;
+                                    runner.meleeCooldown = runner.baseCooldown;
+                                    runner.xvel += 5*Math.cos(runnerAngle);
+                                    runner.yvel += 5*Math.sin(runnerAngle);
+                                }
+                                if (runner.meleeTime > -10) {
+                                    runner.xvel *= 0.98;
+                                    runner.yvel *= 0.98;
+                                }
+                                if (runner.meleeTime == 50) {
+                                    runner.innerHTML = "<img src=\'runnerAttack.gif\' width=\'" + 100 + "px\' height=\'"+ 100 + "px\'>";
+                                }
+                                if (runner.meleeTime == 1) {
+                                    runner.innerHTML = "<img src=\'runner.gif\' width=\'" + 100 + "px\' height=\'"+ 100 + "px\'>";
+                                    currParticleImage = "slash.gif";
+                                    Particle(runner.x + 10*Math.random(),runner.y + 10*Math.random(),180*runnerAngle/Math.PI,200,300,300, 1, 1.5*Math.cos(runnerAngle), 1.5*Math.sin(runnerAngle), 1);
+                                    if (Math.sqrt(((0.5*window.screen.height - (runner.y + 75*Math.sin(runnerAngle)))*(0.5*window.screen.height - (runner.y + 75*Math.sin(runnerAngle))))+((0.5*window.screen.width - (runner.x + 75*Math.cos(runnerAngle)))*(0.5*window.screen.width - (runner.x + 75*Math.cos(runnerAngle))))) <= 75 && iframes <= 0) {
+                                        playerHealth -= 50;
+                                        iframes = 100;
+                                    }
+
+                                }
+                                if (swingTime <= 0) {
+                                    runner.meleeVul = true;
+                                }
+                                runner.meleeTime -= 1;
+                                const relX = runner.x - 0.5*window.screen.width;
+                                const relY = runner.y - 0.5*window.screen.height;
+                                var rotatedX = (relX)*Math.cos(-1*angle) - (relY)*Math.sin(-1*angle);
+                                var rotatedY = (relX)*Math.sin(-1*angle) + (relY)*Math.cos(-1*angle);
+                                    if ((-16*(1 + (attackCharge/400)) - 32) <= rotatedX && rotatedX <= (100*(1 + (attackCharge/400)) + 32)) {
+                                        swordXOverlap = true;
+                                    } else {
+                                        swordXOverlap = false;
+                                    }
+                                    if ((-50*(1 + (attackCharge/400)) - 32) <= rotatedY && rotatedY <= (50*(1 + (attackCharge/400)) + 32)) {
+                                        swordYOverlap = true;
+                                    } else {
+                                        swordYOverlap = false;
+                                    }
+                                if (runner.meleeVul == true && swordXOverlap == true && swingTime > 0 && swordYOverlap == true) {
+                                    runner.health -= AR*(1 + (attackCharge/400));
+                                    currParticleImage = "cloud.gif";
+                                    Particle(runner.x + 16*(Math.random() - Math.random()), runner.y + 16*(Math.random() - Math.random()), 360*Math.random(), 32, 32, 1000, 1, 1*(Math.random() - Math.random()), 1*(Math.random() - Math.random()), 1);
+                                    runner.xvel += (1 + (attackCharge/400))*AR*0.1*Math.cos(angle);
+                                    runner.yvel += (1 + (attackCharge/400))*AR*0.1*Math.sin(angle);
+                                    runner.meleeVul = false;
+                                }
+                                if (Math.sqrt((0.5*window.screen.width - parseFloat(runner.style.left))*(0.5*window.screen.width - parseFloat(runner.style.left)) + (0.5*window.screen.height - parseFloat(runner.style.top))*(0.5*window.screen.height - parseFloat(runner.style.top))) <= (200 - 0.5*barrageTime) && barrageTime >= 0) {
+                                    currParticleImage = "cloud.gif";
+                                    runner.health -= 10;
+                                    Particle(runner.x + 16*(Math.random() - Math.random()), runner.y + 16*(Math.random() - Math.random()), 360*Math.random(), 32, 32, 1000, 1, 1*(Math.random() - Math.random()), 1*(Math.random() - Math.random()), 1);
+                                    runner.xvel -= (0.1*Math.cos(runnerAngle));
+                                    runner.yvel -= (0.1*Math.sin(runnerAngle));
+                                }
+                            if (runner.health <= 0) {
+                                for(i = 0; i < 3; i++) {
+                                    currParticleImage = "cloud.gif";
+                                    Particle(runner.x + 16*(Math.random() - Math.random()), runner.y + 16*(Math.random() - Math.random()), 360*Math.random(), 64, 64, 1000, 1, 0.5*(Math.random() - Math.random()), 0.5*(Math.random() - Math.random()), 1);
+                                }
+                                runner.remove();
+                            } else {
+                                runner.style.left = runner.x + "px";
+                                runner.style.top = runner.y + "px"
+                                if (runnerAngle*180/Math.PI < 90 && runnerAngle*180/Math.PI > -90) {
+                                    runner.style.transform = "translate(-50%, -50%) scaleX(1)";
+                                } else {
+                                    runner.style.transform = "translate(-50%, -50%) scaleX(-1)";
+                                }
+                                runner.x -= xvel;
+                                runner.y -= yvel;
+                                if (Math.sqrt(((0.5*window.screen.height - runner.y)*(0.5*window.screen.height - runner.y))+((0.5*window.screen.width - runner.x)*(0.5*window.screen.width - runner.x))) >= 100){
+                                    runner.xvel += 0.05*Math.cos(runnerAngle);
+                                    runner.yvel += 0.05*Math.sin(runnerAngle);
+                                    runner.xvel += runner.strafeSpeed*Math.cos(runnerAngle + Math.PI/2);
+                                    runner.yvel += runner.strafeSpeed*Math.sin(runnerAngle + Math.PI/2);
+                                } else {
+                                    runner.xvel -= 0.01*Math.cos(runnerAngle);
+                                    runner.yvel -= 0.01*Math.sin(runnerAngle);
+                                }
+                                
+                                runner.xvel *= 0.98;
+                                runner.yvel *= 0.98;
+                                runner.x += runner.xvel;
+                                runner.y += runner.yvel;
                             }
                         }
                 }
@@ -372,10 +517,21 @@
                 bgElement.style.top = window.screen.height*0.5 + "px";
 				bgElement.style.left = window.screen.width*0.5 + "px";
                 bgElement.innerHTML = "<img src=\'arena.gif\' width=\'5000px\' height=\'5000px\' draggable='false'>";
-                const wElement = document.getElementById('weapon');
-                wElement.innerHTML = "<img src=\'black-splinter.png\' width=\'20px\' height=\'100px\'>";
                 const playerHpElement = document.getElementById('playerHpBar');
                 function handleTick(){
+                    if (ePressed == true && barrageCooldown <= 0 && barrageTime <= 0) {
+                        barrageTime = 100;
+                        barrageCooldown = 200;
+                    }
+                    if (barrageTime > 0) {
+                        currParticleImage = "slash.png";
+                        for (i = 0; i < 3; i++){
+                            xvel += 0.03*Math.cos(angle);
+                            yvel += 0.03*Math.sin(angle);
+                            random = Math.random() - Math.random();
+                            Particle(window.screen.width*0.5 + 5*random - 20*Math.cos(360*random*angle), window.screen.height*0.5 + 5*random - 20*Math.sin(360*random*angle), (360*random*degrees + 5*random), 200*Math.random(), 400 - barrageTime, 90, 0, 1*Math.cos(360*random*angle), 1*Math.sin(360*random*angle), 1);
+                        }
+                    }
                     playerHpElement.style.width = playerHealth + "px";
                     if (playerHealth > 500){
                         playerHealth = 500;
@@ -428,47 +584,25 @@
                     manageParticles();
                     manageWisps();
                     manageProjectiles();
-                    if (swingTime <= 0 && !mouseDown) {
-                        wElement.style.opacity = 0;
+                    manageRunners();
+                    if (swingTime == 1) {
+                        attackCharge = 0;
                     }
-                    if (combo == 1) {
-                        wElement.innerHTML = "<img src=\'black-splinter.png\' width=\'20px\' height=\'100px\'>";
-                    } else {
-                        wElement.innerHTML = "<img src=\'black-splinter-flipped.png\' width=\'20px\' height=\'100px\'>";
+                    barrageTime -= 1;
+                    if (barrageTime <= 0) {
+                        barrageCooldown -= 1;
                     }
-                    if (swingTime <= 0 && mouseDown) {
-                        wElement.style.transform = "translate(-50%, -50%) rotate(" + (degrees - combo*60 + 90*(combo - 1)) + "deg)" + "scaleX(" + (1 + (attackCharge/400)) + ") scaleY(" + (1 + (attackCharge/400)) + ")";
-                        wElement.style.left = ((window.screen.width*0.5 - (attackCharge/550 + 1)*(70*Math.cos(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
-                        wElement.style.top = ((window.screen.height*0.5 - (attackCharge/550 + 1)*(70*Math.sin(angle + combo*Math.PI/5) + 2*(Math.random() - Math.random())))) + "px";
-                        swingCurrentAngle = angle;
-                        swingVel = 0;
-                        wElement.style.opacity = Math.log(attackCharge)/100;
-                    } else if(swingTime > 0){
-                        currParticleImage = "sword-trail.png";
-                        Particle((window.screen.width*0.5 - (attackCharge/550 + 1)*(70*Math.cos(swingCurrentAngle + combo*Math.PI/7))), (window.screen.height*0.5 - (attackCharge/550 + 1)*(70*Math.sin(swingCurrentAngle + combo*Math.PI/7))), ((swingCurrentAngle*180/Math.PI) - combo*65 + 90*(combo-1)), (100*(1 + (attackCharge/400))), (25*(1 + (attackCharge/400))), 300, 0, 0, 0)
-                        swingCurrentAngle += swingVel;
-                        wElement.style.transform = "translate(-50%, -50%) rotate(" + ((swingCurrentAngle*180/Math.PI) - combo*60 + 90*(combo-1)) + "deg)" + "scaleX(" + (1 + (attackCharge/400)) + ") scaleY(" + (1 + (attackCharge/400)) + ")";
-                        wElement.style.left = (window.screen.width*0.5 - (attackCharge/550 + 1)*(70*Math.cos(swingCurrentAngle + combo*Math.PI/5))) + "px";
-                        wElement.style.top = (window.screen.height*0.5 - (attackCharge/550 + 1)*(70*Math.sin(swingCurrentAngle + combo*Math.PI/5))) + "px";
-                        if (swingTime > 74) {
-                            wElement.style.opacity = (parseFloat(wElement.style.opacity) + 0.03);
-                            swingVel += combo*0.00085;
-                        } else {
-                            swingVel -= combo*0.00085;
-                            wElement.style.opacity = (parseFloat(wElement.style.opacity) - 0.03);
-                        }
-                        if (swingTime == 1) {
-                            combo *= -1;
-                            attackCharge = 0;
-                        }
-                        swingTime -= 1;
+                    if (swingTime <= 0 && mouseDown && attackCharge >= 50) {
+                        currParticleImage = "chargeparticle.png"
+                        Particle(screenWidth*0.5 + (attackCharge/1600 + 1)*30*random, screenHeight*0.5 + (attackCharge/1600 + 1)*10*(Math.random() - Math.random()) + 20, 0, 10*(attackCharge/400 + 1), 1, 100, 0, 0, -1*(attackCharge/400 + 1), 1);
                     }
+                    swingTime -= 1;
                     random = Math.random() - Math.random();
                 }
-                
                 let intervalId = setInterval(() => handleTick(), 1);
-                for(i = 0; i < 10; i++){
-                    Wisp();
+                for(i = 0; i < 1; i++){
+                    Runner(150 + 100*Math.random());
+                    Wisp(250 + 100*Math.random())
                 }
             </script>
         </body>
